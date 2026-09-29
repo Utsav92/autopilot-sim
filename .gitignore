@@ -1,6 +1,5 @@
-__pycache__/
-*.pyc
-test/bus.jpg
-test/patch_ui.py
-shot.png
-node_modules/
+
+[32m[1m[OK][0m Command outcome recorded
+.claude-flow/
+.impeccable/
+**/.claude-flow/
