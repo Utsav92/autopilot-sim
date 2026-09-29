@@ -40,3 +40,11 @@ Needs Windows 11 + WSL2 with Ubuntu, ~15 GB and time. **Nothing here is run auto
 3. In the web UI, "Real openpilot" panel -> Connect.
 
 The relay (`bridge/openpilot_relay.py`) is stdlib-only and serves `GET /state`.
+
+## License
+
+Code: MIT (see `LICENSE`).
+
+`models/yolov8n.onnx` is an Ultralytics YOLOv8n export distributed under **AGPL-3.0** and is **not** covered by the MIT license; if you redistribute or build a service on it, AGPL-3.0 terms apply. It was obtained from the Hyuto/yolov8-onnxruntime-web repository. Replace it with a permissively licensed detector if you need MIT-only terms.
+
+openpilot (MIT) and MetaDrive are separate projects; this repo only contains scripts that install and talk to them.
