@@ -1,0 +1,21 @@
+<!doctype html><body><pre id="o">running</pre>
+<script src="../js/sim.js"></script><script src="../js/cv.js"></script>
+<script>
+const c=document.createElement('canvas');c.width=640;c.height=360;const ctx=c.getContext('2d',{willReadFrequently:true});
+const ai=Sim.makeAI(7);for(let i=0;i<6;i++)Sim.genEpisode(ai,i+1,60);ai.trainSteps(600,64,3e-3);
+let out='';
+for(const wx of ['clear','rain','fog','night']){
+ const w=new Sim.World(ai,{weather:wx,perception:'cv',seed:11,collect:false,density:8,curve:1.3});
+ let maxOff=0,errSum=0,n=0,valid=0,frames=0,dis=0;
+ while(w.t<60&&!w.crashed){
+  for(let k=0;k<3;k++)w.step(0.02);
+  CV.render(ctx,w,Math.random);const r=CV.detectLanes(ctx,w.P.tracks);w.setCvLane(r);frames++;if(r.valid)valid++;
+  const gt=w.gtLane();if(r.valid){errSum+=Math.abs(r.c0-gt.c0);n++;if(Math.abs(r.c0-gt.c0)>0.8&&wx==='clear'&&(globalThis.__e=(globalThis.__e||0))<8){__e++;out+=`ERR t=${w.t.toFixed(1)} cv=${r.c0.toFixed(2)},${r.c1.toFixed(3)},${r.c2.toFixed(4)} gt=${gt.c0.toFixed(2)},${gt.c1.toFixed(3)},${gt.c2.toFixed(4)} q=${r.q.toFixed(2)} L=${r.Lp.length} R=${r.Rp.length} lane=${w.ego.lane} d=${w.ego.d.toFixed(2)}
+`;}}
+  maxOff=Math.max(maxOff,Math.abs(w.ego.d-(w.ego.lane-1)*3.7));
+  if(!w.ego.engaged){dis++;w.engage();}
+ }
+ out+=`${wx}: crash=${w.crashed?w.crashed.kind:'no'} t=${w.t.toFixed(0)} maxOff=${maxOff.toFixed(2)} validFrac=${(valid/frames).toFixed(2)} meanC0err=${(errSum/Math.max(n,1)).toFixed(3)} disengages=${dis}\n`;
+}
+document.getElementById('o').textContent=out;
+</script></body>

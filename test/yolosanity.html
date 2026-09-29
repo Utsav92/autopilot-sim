@@ -1,0 +1,10 @@
+<!doctype html><body><pre id="o">running</pre>
+<script src="../js/yolo.js"></script>
+<script>
+(async()=>{let out='';try{
+const img=new Image();img.src='bus.jpg';await img.decode();
+const c=document.createElement('canvas');c.width=640;c.height=360;const g=c.getContext('2d');g.drawImage(img,0,0,640,360);
+const d=await Yolo.detect(c,0.3);out+=JSON.stringify(d.map(x=>[x.cls,+x.conf.toFixed(2),Math.round(x.u),Math.round(x.vb)]));
+}catch(e){out+='ERR '+e.message}
+document.getElementById('o').textContent=out;})();
+</script></body>

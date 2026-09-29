@@ -1,0 +1,25 @@
+<!doctype html><body><pre id="o">running</pre>
+<script src="../js/sim.js"></script><script src="../js/cv.js"></script><script src="../js/yolo.js"></script>
+<script>
+(async()=>{
+const c=document.createElement('canvas');c.width=640;c.height=360;const ctx=c.getContext('2d',{willReadFrequently:true});
+let out='';
+try{
+const ai=Sim.makeAI(7);for(let i=0;i<5;i++)Sim.genEpisode(ai,i+1,60);ai.trainSteps(500,64,3e-3);
+const only=new URLSearchParams(location.search).get('only');for(const [name,cfg] of [['highway',{}],['hardbrake',{events:{hardbrake:true}}],['cutin',{events:{cutin:true}}],['stopped',{events:{stopped:true}}]].filter(x=>!only||x[0]===only)){
+ const w=new Sim.World(ai,Object.assign({seed:21,collect:false,density:12,curve:0.8,perception:'cv',detector:'yolo'},cfg));
+ let inf=0,det=0,matched=0,fp=0,miss=0,dis=0;
+ while(w.t<45&&!w.crashed){
+  for(let k=0;k<10;k++)w.step(0.02);   // 0.2 s per YOLO frame
+  CV.render(ctx,w,Math.random);
+  w.setCvLane(CV.detectLanes(ctx,w.P.tracks));
+  const d=await Yolo.detect(c,0.25);w.yolo={dets:d,fresh:true};inf++;
+  if(w.yoloStats){det+=w.yoloStats.det;matched+=w.yoloStats.matched;fp+=w.yoloStats.fp;miss+=w.yoloStats.miss;}
+  if(!w.ego.engaged){dis++;w.engage();}
+ }
+ out+=`${name.padEnd(10)} crash=${w.crashed?w.crashed.kind:'no'} t=${w.t.toFixed(0)} frames=${inf} boxes=${det} matched=${matched} fp=${fp} missed=${miss} minTTC=${w.stats.minTTC.toFixed(1)} aeb=${w.stats.aeb} dis=${dis}\n`;
+}
+}catch(e){out+='ERR '+e.message+'\n'+e.stack;}
+document.getElementById('o').textContent=out;
+})();
+</script></body>

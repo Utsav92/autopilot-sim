@@ -1,0 +1,9 @@
+<!doctype html><body><pre id="o">running</pre>
+<script src="../js/sim.js"></script><script src="../js/cv.js"></script>
+<script>
+const c=document.createElement('canvas');c.width=640;c.height=360;const ctx=c.getContext('2d',{willReadFrequently:true});
+const w=new Sim.World(Sim.makeAI(7),{perception:'gt',seed:11,collect:false,density:8,curve:1.3});
+for(let k=0;k<3;k++)w.step(0.02);CV.render(ctx,w,Math.random);const r=CV.detectLanes(ctx,w.P.tracks);const gt=w.gtLane();
+let o=`gt c=${gt.c0.toFixed(2)},${gt.c1.toFixed(3)},${gt.c2.toFixed(4)}\ncv valid=${r.valid} c=${r.c0.toFixed(2)},${r.c1.toFixed(3)},${r.c2.toFixed(4)} q=${r.q}\nfitL=${r.fitL}\nfitR=${r.fitR}\nL=${JSON.stringify(r.Lp.map(p=>[p[0],+p[1].toFixed(2),+p[2].toFixed(0)]))}\nR=${JSON.stringify(r.Rp.map(p=>[p[0],+p[1].toFixed(2),+p[2].toFixed(0)]))}\n`;
+document.getElementById('o').textContent=o;
+</script></body>

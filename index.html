@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutoPilot Sim</title>
+<style>
+:root{--bg:#0b0f14;--panel:#121820;--line:#233040;--txt:#d6e0ea;--dim:#7d8ea1;--acc:#39e58c;--blue:#4cc9f0;--warn:#ffb020;--crit:#ff4d4d;--pur:#b48cff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.4 system-ui,Segoe UI,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:20px;margin:0;letter-spacing:.5px}h1 b{color:var(--acc)}
+.sub{color:var(--dim);font-size:11px}
+main{display:grid;grid-template-columns:minmax(0,660px) minmax(0,1fr);gap:12px;padding:12px 16px;max-width:1500px;margin:0 auto}
+@media(max-width:1100px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:0 0 8px;display:flex;justify-content:space-between;gap:8px}
+.panel h2 span{color:var(--blue);text-transform:none;letter-spacing:0}
+.cam{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden}
+.cam canvas{position:absolute;inset:0;width:100%;height:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,select,input[type=text]{background:#1a2430;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit}
+button{cursor:pointer}button:hover{border-color:var(--blue)}button.on{background:#12402c;border-color:var(--acc);color:var(--acc)}
+button.danger.on{background:#4a1c1c;border-color:var(--crit);color:var(--crit)}
+input[type=text]{flex:1;min-width:180px}
+label{color:var(--dim);font-size:11px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}
+canvas.f{width:100%;display:block;background:#0a0e13;border-radius:6px}
+.pipe{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.node{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#0e141b;min-width:92px;transition:.08s}
+.node.flash{border-color:var(--acc);background:#12281e}
+.node b{display:block;font-size:14px}.node i{font-style:normal;color:var(--dim);font-size:11px}
+.arrow{color:var(--dim)}
+.tags span{display:inline-block;border:1px solid var(--line);border-radius:10px;padding:1px 8px;margin:2px;font-size:11px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stat{background:#0e141b;border-radius:6px;padding:6px}.stat b{display:block;font-size:20px}.stat i{font-style:normal;color:var(--dim);font-size:11px}
+#log{height:110px;overflow:auto;font:11px ui-monospace,Consolas,monospace;color:var(--dim);background:#0a0e13;border-radius:6px;padding:6px}
+#log .warn{color:var(--warn)}#log .crit{color:var(--crit)}
+.legend{font-size:11px;color:var(--dim)}.legend b{color:var(--txt)}
+#boot{position:fixed;inset:0;background:#0b0f14ee;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:9}
+#bar{width:320px;height:8px;background:#1a2430;border-radius:4px;overflow:hidden}#bar div{height:100%;width:0;background:var(--acc)}
+kbd{background:#1a2430;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px}
+</style>
+</head>
+<body>
+<div id="boot"><div style="font-size:18px">Bootstrapping neural driving policy…</div><div id="bar"><div></div></div><div class="sub" id="bootmsg">Generating expert demonstrations headlessly</div></div>
+<header>
+  <h1>AutoPilot <b>Sim</b></h1>
+  <span class="sub">openpilot-style driving stack in the browser · computer vision · deep learning (behaviour cloning) · online ML · generative future sampling</span>
+</header>
+<main>
+<section>
+  <div class="panel">
+    <h2>Front camera · <span id="camTag">simulated dashcam + CV overlays</span></h2>
+    <div class="cam"><canvas id="cam" width="640" height="360"></canvas><canvas id="ov" width="640" height="360"></canvas></div>
+    <div class="row" style="margin-top:8px">
+      <button id="bEng" class="on">Engaged</button>
+      <button id="bLL">◀ Lane</button><button id="bLR">Lane ▶</button>
+      <label><input type="checkbox" id="cPass"> auto-pass</label>
+      <label>Set <input type="range" id="rSet" min="30" max="130" value="100" style="width:110px"> <span id="vSet">100</span> km/h</label>
+      <button id="bPause">Pause</button>
+      <select id="sSpd"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>Policy</label><button id="pExp" class="on">Expert planner</button><button id="pNN">Neural net (learned)</button>
+      <label style="margin-left:8px">Lane perception</label><button id="cGT" class="on">Ground truth</button><button id="cCV">Computer vision</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>Object detection</label><button id="dSim" class="on">Simulated</button><button id="dYolo">YOLOv8n (real, in-browser)</button><span class="sub" id="yoloInfo"></span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>Object detection</label><button id="dSim" class="on">Simulated</button><button id="dYolo">YOLOv8n (real, in-browser)</button><span class="sub" id="yoloInfo"></span>
+    </div>
+    <div class="legend" style="margin-top:6px"><kbd>Space</kbd> engage/disengage · <kbd>←</kbd><kbd>→</kbd> steer · <kbd>↓</kbd> brake (disengages) · <kbd>Q</kbd>/<kbd>E</kbd> lane change · <kbd>R</kbd> reset</div>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <h2>Scenario generator · <span>prompt → scenario (keyword grammar; LLM-ready slot)</span></h2>
+    <div class="row"><input type="text" id="prompt" value="night rain, aggressive cut-ins and a pedestrian, heavy traffic"><button id="bGen">Generate</button></div>
+    <div class="legend" style="margin-top:4px" id="llmInfo">Checking for LLM server…</div>
+    <div class="legend" style="margin-top:4px" id="llmInfo">Checking for LLM server…</div>
+    <div class="tags" id="tags" style="margin-top:6px"></div>
+    <div class="row" style="margin-top:6px">
+      <button data-sc="">Clear highway</button><button data-sc="cut-in">Cut-in</button><button data-sc="sudden hard brake">Hard brake</button>
+      <button data-sc="stopped vehicle broken down">Stopped car</button><button data-sc="pedestrian jaywalker">Pedestrian</button>
+      <button data-sc="dense rush hour traffic">Dense</button><button data-sc="fog">Fog</button><button data-sc="night">Night</button><button data-sc="rain">Rain</button><button data-sc="winding sharp curves">Curvy</button>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <h2>openpilot process graph · <span id="pipeInfo"></span></h2>
+    <div class="pipe" id="pipe"></div>
+  </div>
+</section>
+<section>
+  <div class="grid2">
+    <div class="panel"><h2>Bird's-eye + generative futures <span>fan = sampled trajectories</span></h2><canvas class="f" id="top" width="420" height="380"></canvas></div>
+    <div class="panel"><h2>CV: edges + lane fit <span id="cvInfo"></span></h2><canvas class="f" id="edge" width="320" height="180"></canvas>
+      <div class="legend" style="margin-top:6px">Sobel edge map · <b style="color:#ff6b6b">left</b>/<b style="color:#4cc9f0">right</b> paint pixels · <b style="color:#39e58c">quadratic lane fit</b></div>
+      <div class="stats" style="margin-top:8px;grid-template-columns:repeat(3,1fr)"><div class="stat"><b id="sC0">–</b><i>offset c0 (m)</i></div><div class="stat"><b id="sC1">–</b><i>heading c1</i></div><div class="stat"><b id="sC2">–</b><i>curvature 2·c2</i></div></div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:12px">
+    <div class="panel"><h2>Neural policy · 10→32→32→2 <span id="nnInfo"></span></h2><canvas class="f" id="nn" width="420" height="230"></canvas>
+      <div class="row" style="margin-top:6px"><button id="bTrain" class="on">Online training</button><button id="bBoot">Retrain from scratch</button></div></div>
+    <div class="panel"><h2>Training loss + cut-in classifier <span id="pmInfo"></span></h2><canvas class="f" id="loss" width="420" height="120"></canvas>
+      <canvas class="f" id="chSteer" width="420" height="110" style="margin-top:8px"></canvas>
+      <div class="legend">Steering curvature: <b style="color:#39e58c">expert</b> vs <b style="color:#b48cff">neural net</b></div></div>
+  </div>
+  <div class="panel" style="margin-top:12px"><h2>Vehicle telemetry <span>last 40 s</span></h2>
+    <div class="grid2"><canvas class="f" id="chSpd" width="420" height="120"></canvas><canvas class="f" id="chOff" width="420" height="120"></canvas></div>
+    <div class="legend">Left: speed <b style="color:#4cc9f0">actual</b> vs <b style="color:#ffb020">target</b> (km/h) · Right: lateral offset from lane centre (m)</div>
+    <div class="stats" style="margin-top:8px" id="stats"></div>
+  </div>
+  <div class="panel" style="margin-top:12px"><h2>Real openpilot (WSL + MetaDrive) <span id="opInfo">not connected</span></h2>
+    <div class="row" style="margin-bottom:6px"><input type="text" id="opUrl" value="http://localhost:8765/state" style="min-width:220px"><button id="bOp">Connect</button></div>
+    <canvas class="f" id="opc" width="420" height="200"></canvas>
+    <div class="legend" style="margin-top:6px">Live modelV2 path and lane lines, lead and carState streamed from openpilot itself. Setup steps are in the README (bridge section).</div></div>
+  <div class="panel" style="margin-top:12px"><h2>Real openpilot (WSL + MetaDrive) <span id="opInfo">not connected</span></h2>
+    <div class="row" style="margin-bottom:6px"><input type="text" id="opUrl" value="http://localhost:8765/state" style="min-width:220px"><button id="bOp">Connect</button></div>
+    <canvas class="f" id="opc" width="420" height="200"></canvas>
+    <div class="legend" style="margin-top:6px">Live modelV2 path and lane lines, lead and carState streamed from openpilot itself. Setup steps are in the README (bridge section).</div></div>
+  <div class="panel" style="margin-top:12px"><h2>Event log (cereal-style)</h2><div id="log"></div></div>
+  <div class="panel legend" style="margin-top:12px">
+    <b>What is real here?</b> Lane detection is genuine computer vision on rendered pixels (thresholding → runs → RANSAC-style quadratic fit). The driving policy is a real neural net trained by behaviour cloning of the planner (with DAgger-style aggregation while it drives). The cut-in predictor is an online-trained logistic regression. Future sampling is a hand-parameterised mixture model driven by that classifier. Object detection is simulated (ground truth + range-dependent noise/dropout, monocular range geometry) - swap in a real detector like YOLO to go further. This mirrors openpilot's architecture but does not run openpilot's code (which needs Linux + comma hardware/MetaDrive).
+  </div>
+</section>
+</main>
+<script src="js/sim.js"></script>
+<script src="js/cv.js"></script>
+<script src="js/yolo.js"></script>
+<script src="js/yolo.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

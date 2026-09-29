@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+test/bus.jpg
+test/patch_ui.py
+shot.png
+node_modules/

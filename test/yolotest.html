@@ -1,0 +1,28 @@
+<!doctype html><body><pre id="o">running</pre>
+<script src="../js/sim.js"></script><script src="../js/cv.js"></script><script src="../js/yolo.js"></script>
+<script>
+(async()=>{
+const c=document.createElement('canvas');c.width=640;c.height=360;const ctx=c.getContext('2d',{willReadFrequently:true});
+let out='';
+try{
+const ai=Sim.makeAI(7);
+for(const wx of ['clear','rain','night']){
+ const w=new Sim.World(ai,{weather:wx,seed:5,collect:false,density:30,curve:0.5});
+ let tp=0,fp=0,gt=0,cls={};
+ for(let f=0;f<12;f++){
+  for(let k=0;k<100;k++)w.step(0.02);
+  CV.render(ctx,w,Math.random);
+  const t0=performance.now();const dets=await Yolo.detect(c,0.25);const ms=performance.now()-t0;
+  // ground truth visible objects 8..80m
+  const pe={};const objs=w.objs.filter(o=>{w.road.toEgo(w.pose,o.s-o.len/2,o.d,pe);return pe.x>8&&pe.x<80&&Math.abs(pe.y)<8});
+  gt+=objs.length;
+  for(const d of dets){ cls[d.cls]=(cls[d.cls]||0)+1; const xm=Sim.CAM.f*Sim.CAM.h/(d.vb-Sim.CAM.vh),ym=(Sim.CAM.cx-d.u)*xm/Sim.CAM.f;
+    const m=objs.find(o=>{w.road.toEgo(w.pose,o.s-o.len/2,o.d,pe);return Math.abs(pe.x-xm)<Math.max(6,.2*xm)&&Math.abs(pe.y-ym)<2.4}); if(m)tp++;else fp++;}
+  if(f===11)out+=`${wx}: last-frame ${ms.toFixed(0)}ms `;
+ }
+ out+=`${wx}: gtObjs=${gt} matchedDets=${tp} unmatched=${fp} classes=${JSON.stringify(cls)}\n`;
+}
+}catch(e){out+='ERR '+e.message+'\n'+e.stack;}
+document.getElementById('o').textContent=out;
+})();
+</script></body>
